@@ -1,19 +1,42 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+    Joseph Andaya
+    COMP173
+    Final Project
  */
 package finalprojectcomp173;
 
-/**
- *
- * @author Joseph
- */
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Scanner;
+import java.util.concurrent.Semaphore;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JFileChooser;
+
+
 public class ZooSim extends javax.swing.JFrame {
 
-    /**
-     * Creates new form ZooSim
-     */
+    private File selectedFile;
+    private String sFile;
+    private JFileChooser fc = new JFileChooser();
+    
+    private int numVisitors;
+    private int numCars;
+    private int numGasPumps;
+    private int waitTime;
+    private Semaphore carSem = new Semaphore(0);
+    private Semaphore visitorSem = new Semaphore(0);
+    private Semaphore gasPumpSem = new Semaphore(0);
+    private int integerCount = 4;
+    private int lineCount;
+
+    private List<String> InstanceList;
+    private List<Integer> InstanceListInteger = new ArrayList<Integer>();
+    private List<List<Integer>> ListofLists = new ArrayList<List<Integer>>();
+    
     public ZooSim() {
         initComponents();
     }
@@ -27,25 +50,178 @@ public class ZooSim extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jTextField1 = new javax.swing.JTextField();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        textArea = new javax.swing.JTextArea();
+        jPanel1 = new javax.swing.JPanel();
+        openFileButton = new javax.swing.JButton();
+        openFileLabel = new javax.swing.JLabel();
+        printButton = new javax.swing.JButton();
+
+        jTextField1.setText("jTextField1");
+
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        textArea.setColumns(20);
+        textArea.setRows(5);
+        jScrollPane1.setViewportView(textArea);
+
+        openFileButton.setText("OpenFile");
+        openFileButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                openFileButtonActionPerformed(evt);
+            }
+        });
+
+        openFileLabel.setText("File Opened: ");
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(openFileLabel)
+                    .addComponent(openFileButton))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(openFileLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(openFileButton)
+                .addGap(34, 34, 34))
+        );
+
+        printButton.setText("Print");
+        printButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                printButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 400, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 487, Short.MAX_VALUE)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(printButton)
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 300, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 111, Short.MAX_VALUE)
+                .addComponent(printButton)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    /**
-     * @param args the command line arguments
-     */
+    private void openFileButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_openFileButtonActionPerformed
+        int returnVal = fc.showOpenDialog(null);
+        if (returnVal == JFileChooser.APPROVE_OPTION)
+        {
+            // clear the list for new file
+            selectedFile  = fc.getSelectedFile();
+            sFile = selectedFile.toString();
+            try {
+                readFile(selectedFile);
+                openFileLabel.setText("File Opened: " + selectedFile);
+            } catch (IOException ex) {
+                Logger.getLogger(ZooSim.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }//GEN-LAST:event_openFileButtonActionPerformed
+
+    private void printButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printButtonActionPerformed
+        displayMatrix(ListofLists);
+    }//GEN-LAST:event_printButtonActionPerformed
+    
+    // reads in the file based on instances of number of visitors, etc.
+    public void readFile(File selected)throws IOException {
+        Scanner scan = new Scanner(selected);
+        InstanceList = new ArrayList<String>();
+        int count = 0;
+        String temp;
+        while(scan.hasNext()){
+            temp = scan.next();
+            StripString(temp);
+            InstanceList.add(temp);
+            InstanceList = new ArrayList<String>();
+            //System.out.println("temp: "+ temp);
+            lineCount++;
+            count++;
+            
+            // when it is done reading a line.
+            if (count >= 4){
+                InstanceList = new ArrayList<String>();
+                count = 0;
+            }
+        }
+    }
+    
+    public void displayListInteger(List<Integer> a){
+        Iterator iter = a.iterator();
+        while(iter.hasNext()){
+            
+            textArea.append("\n" + iter.next());
+        }
+    }
+    
+    public void displayList(List<String> a){
+        Iterator iter = a.iterator();
+        while(iter.hasNext()){
+            
+            textArea.append("\n" + iter.next());
+        }
+    }
+    
+    public void StripString(String test){
+        int i = 0;
+        char temp;
+        InstanceListInteger = new ArrayList<Integer>();
+        StringBuilder aString = new StringBuilder();
+        String into;
+        while(i < test.length()){
+            temp = test.charAt(i);
+            System.out.print(temp);
+            if(Character.isDigit(temp))
+                aString.append(temp);
+            else if(temp == ',' || (i-1) == test.length()){
+                //integerCount++;
+                into = aString.toString();
+                InstanceListInteger.add(Integer.parseInt(into));
+            }
+                
+                
+            i++;
+        }
+        ListofLists.add(InstanceListInteger);
+    }
+    public void displayMatrix(List<List<Integer>> a){
+        List<Integer> LocalLine = new ArrayList<Integer>();
+        for (int j = 0; j < lineCount; j++){
+            LocalLine = a.get(j);
+            for(int k = 0; k < integerCount; k++){
+                textArea.append(LocalLine.get(k) + " ");
+            }
+            textArea.append("\n");
+            LocalLine = new ArrayList<Integer>();
+        }
+    }
+    
+
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
@@ -79,5 +255,12 @@ public class ZooSim extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JTextField jTextField1;
+    private javax.swing.JButton openFileButton;
+    private javax.swing.JLabel openFileLabel;
+    private javax.swing.JButton printButton;
+    private javax.swing.JTextArea textArea;
     // End of variables declaration//GEN-END:variables
 }
