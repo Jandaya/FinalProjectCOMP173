@@ -6,7 +6,10 @@
 package finalprojectcomp173;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -150,24 +153,40 @@ public class ZooSim extends javax.swing.JFrame {
     
     // reads in the file based on instances of number of visitors, etc.
     public void readFile(File selected)throws IOException {
-        Scanner scan = new Scanner(selected);
+        Scanner scan = new Scanner(selected).useDelimiter("(\\s|,)+");
         InstanceList = new ArrayList<String>();
         int count = 0;
         String temp;
+        int a;
         while(scan.hasNext()){
-            temp = scan.next();
-            StripString(temp);
-            InstanceList.add(temp);
-            InstanceList = new ArrayList<String>();
+            a = scan.nextInt();
+            //StripString(temp);
+            //InstanceList.add(temp);
+            //InstanceList = new ArrayList<String>();
             //System.out.println("temp: "+ temp);
-            lineCount++;
-            count++;
+            //lineCount++;
+            //count++;
+            textArea.append("\n"  + a);
             
             // when it is done reading a line.
             if (count >= 4){
                 InstanceList = new ArrayList<String>();
                 count = 0;
             }
+        }
+    }
+    
+    
+    public void readFile2(File selected)throws IOException {
+        FileReader in = new FileReader(selected);
+        
+        Scanner scan = new Scanner(selected);
+        InstanceList = new ArrayList<String>();
+        int c = 0;
+        String temp;
+
+        while((c = in.read()) != -1){
+            textArea.append("\n" + c);
         }
     }
     
