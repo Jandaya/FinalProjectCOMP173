@@ -28,10 +28,11 @@ public class ZooSim extends javax.swing.JFrame {
     private String sFile;
     private JFileChooser fc = new JFileChooser();
     
-    private int numVisitors = 50;
-    private int numCars = 5;
+    private int numVisitors = 4;
+    private int visitorsActive = numVisitors;
+    private int numCars = 1;
     private int numGasPumps = 3;
-    private int waitTime = 10;
+    private int waitTime = 1;
     private int visitorsPresent = 0; 
     private Semaphore carSem = new Semaphore(0);
     private Semaphore visitorSem = new Semaphore(0);
@@ -40,6 +41,8 @@ public class ZooSim extends javax.swing.JFrame {
     private int integerCount = 4;
     private int lineCount;
     private int allGas = 200;
+    
+    private boolean isRunning = true;
     
     public Car car = new Car();
     public Visitor visitor = new Visitor();
@@ -73,7 +76,6 @@ public class ZooSim extends javax.swing.JFrame {
 
             // if there are no customers in shop barber sleeps
             //if(visitorsPresent <= 0)
-                        //barberStatus.setText("Barber Status: sleep");
                 // cars idle
         }
         
@@ -112,19 +114,19 @@ public class ZooSim extends javax.swing.JFrame {
         
         public Car(int n){
             CarNum = n;
-            numRides = 1;
+            numRides = 5;
         }
         
         public void drive(){
             numRides--;
-            suspendSleep(randomNum(10,1));
+            suspendSleep(randomNum(waitTime,1));
         }
         public void getGas(){
             needGasSem.release(1);
             try{
                 gasSem.acquire(1);
                 textArea.append("Car " + CarNum + " got gas.");
-                numRides = 1;
+                numRides = 5;
             }
             catch (InterruptedException e){
                         System.err.printf("Error on lock");
@@ -132,7 +134,7 @@ public class ZooSim extends javax.swing.JFrame {
         }
         public void startCar(){
             textArea.append("\nCar " + CarNum + "Started");
-            while(visitorsPresent > 0){
+            while(visitorsPresent > 1){
                 CarsIdleLabel.setText("Cars at Idle: waiting...");
                 // if number of rides ==0 get gas
                 if (numRides <= 0){
@@ -160,6 +162,8 @@ public class ZooSim extends javax.swing.JFrame {
                         System.err.printf("Error on lock");
                 }
             }
+            isRunning = false;
+            CarsIdleLabel.setText("Cars at Idle: stopped...");
             VisitorsWaitingLabel.setText("Visitors Waiting: " + 0);
         }
         
@@ -413,32 +417,38 @@ public class ZooSim extends javax.swing.JFrame {
     }//GEN-LAST:event_randomButtonActionPerformed
     
     public void openZoo(){
-        int i = 0;
-        // start new thread for car
-        //car.start();
-        
-        // initialize the number of gas pumps        
-        for (int k = 0; k < numGasPumps; k++){
-            Gas gas = new Gas(k);
-            gas.start();
-        }
-        // initialize the number of cars
-        for(int j = 0; j < numCars; j++){
-            Car car = new Car(j);
-            car.start();
-            
-        }
-        
-        
-        // create thread for each customer and start action
-        while(i < numVisitors){
-            //textArea.append("\nA Visitor enters." + i);
-            Visitor visitor = new Visitor(i);
-            visitor.start();
-            i++;
-            //counter++;
-        }
-        
+        //isRunning = true;
+        int count2 = 0;
+        //while(count2 < 2){
+ 
+            int i = 0;
+            // start new thread for car
+            //car.start();
+
+            // initialize the number of gas pumps        
+            for (int k = 0; k < numGasPumps; k++){
+                Gas gas = new Gas(k);
+                gas.start();
+            }
+            // initialize the number of cars
+            for(int j = 0; j < numCars; j++){
+                Car car = new Car(j);
+                car.start();
+
+            }
+
+
+            // create thread for each customer and start action
+            while(i < visitorsActive){
+                //textArea.append("\nA Visitor enters." + i);
+                Visitor visitor = new Visitor(i);
+                visitor.start();
+                i++;
+                //counter++;
+            }
+          //  count2++;
+        //}
+        //System.out.println("Program has finished.");
     }
     
     
