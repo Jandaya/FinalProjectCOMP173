@@ -38,7 +38,7 @@ public class ZooSim extends javax.swing.JFrame {
     private Semaphore needGasSem = new Semaphore(0);
     private int integerCount = 4;
     private int lineCount;
-    private int allGas = 150;
+    private int allGas = 200;
     
     public Car car = new Car();
     public Visitor visitor = new Visitor();
@@ -183,15 +183,15 @@ public class ZooSim extends javax.swing.JFrame {
         private int pumpNumber;
         
         public Gas(){
-            GasLeft = 200;
+            //GasLeft = 200;
         }
         public Gas(int n){
             pumpNumber = n;
-            GasLeft = 200;
+            //GasLeft = 200;
         }
         public void refillStation(){
             suspendSleep(15);
-            GasLeft = 200;
+            //GasLeft = 200;
         }
         
         public void openGasStation(){
@@ -205,23 +205,23 @@ public class ZooSim extends javax.swing.JFrame {
                     // cars take 3 seconds to refill
                     suspendSleep(3);
                     gasSem.release(1);
-                    GasLeft-=1;
-                    gasRemainingLabel.setText("Gas Remaining: " + GasLeft);
+                    allGas--;
+                    gasRemainingLabel.setText("Gas Remaining: " + allGas);
                 }
                 catch (InterruptedException e){
                     System.err.printf("Error on lock");
                 }
                 
-                if(GasLeft < 50){
+                if(allGas < 50){
                     refillStation();
                     textArea.append("Refilling Station");
-                    gasRemainingLabel.setText("Gas Remaining: " + GasLeft);
+                    gasRemainingLabel.setText("Gas Remaining: " + allGas);
                 }
             }
             
         }
         public void run(){
-            gasRemainingLabel.setText("Gas Remaining: " + GasLeft);
+            gasRemainingLabel.setText("Gas Remaining: " + allGas);
             openGasStation();
             gasSem.release(1);
         }
