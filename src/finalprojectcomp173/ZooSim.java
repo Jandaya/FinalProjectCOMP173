@@ -191,7 +191,7 @@ public class ZooSim extends javax.swing.JFrame {
         }
         public void refillStation(){
             suspendSleep(15);
-            //GasLeft = 200;
+            allGas = 200;
         }
         
         public void openGasStation(){
