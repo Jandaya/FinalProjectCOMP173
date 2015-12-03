@@ -14,6 +14,7 @@ import static java.lang.Thread.sleep;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
@@ -30,8 +31,8 @@ public class ZooSim extends javax.swing.JFrame {
     private int numVisitors = 50;
     private int numCars = 5;
     private int numGasPumps = 3;
-    private int waitTime;
-    private int visitorsPresent = 0;
+    private int waitTime = 10;
+    private int visitorsPresent = 0; 
     private Semaphore carSem = new Semaphore(0);
     private Semaphore visitorSem = new Semaphore(0);
     private Semaphore gasSem = new Semaphore(0);
@@ -45,8 +46,7 @@ public class ZooSim extends javax.swing.JFrame {
     
     private int sleepSeconds = 1;
 
-    private List<String> InstanceList;
-    private List<Integer> InstanceListInteger = new ArrayList<Integer>();
+    private List<InstanceDay> InstanceList = new ArrayList<InstanceDay>();
     private List<List<Integer>> ListofLists = new ArrayList<List<Integer>>();
     
     
@@ -112,19 +112,19 @@ public class ZooSim extends javax.swing.JFrame {
         
         public Car(int n){
             CarNum = n;
-            numRides = 5;
+            numRides = 1;
         }
         
         public void drive(){
             numRides--;
-            suspendSleep(1);
+            suspendSleep(randomNum(10,1));
         }
         public void getGas(){
             needGasSem.release(1);
             try{
                 gasSem.acquire(1);
                 textArea.append("Car " + CarNum + " got gas.");
-                numRides = 5;
+                numRides = 1;
             }
             catch (InterruptedException e){
                         System.err.printf("Error on lock");
@@ -199,7 +199,7 @@ public class ZooSim extends javax.swing.JFrame {
             
             
             while(numCars > 0){
-                System.out.println("waiting....");
+                //System.out.println("waiting....");
                 try{
                     needGasSem.acquire(1);
                     // cars take 3 seconds to refill
@@ -247,6 +247,7 @@ public class ZooSim extends javax.swing.JFrame {
         openFileButton = new javax.swing.JButton();
         openFileLabel = new javax.swing.JLabel();
         runButton = new javax.swing.JButton();
+        randomButton = new javax.swing.JButton();
         printButton = new javax.swing.JButton();
         jPanel2 = new javax.swing.JPanel();
         VisitorsWaitingLabel = new javax.swing.JLabel();
@@ -277,6 +278,13 @@ public class ZooSim extends javax.swing.JFrame {
             }
         });
 
+        randomButton.setText("Random");
+        randomButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                randomButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -290,6 +298,8 @@ public class ZooSim extends javax.swing.JFrame {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(openFileButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(randomButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(runButton)
                         .addGap(34, 34, 34))))
         );
@@ -301,7 +311,8 @@ public class ZooSim extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(openFileButton)
-                    .addComponent(runButton))
+                    .addComponent(runButton)
+                    .addComponent(randomButton))
                 .addGap(34, 34, 34))
         );
 
@@ -387,13 +398,19 @@ public class ZooSim extends javax.swing.JFrame {
     }//GEN-LAST:event_openFileButtonActionPerformed
 
     private void printButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printButtonActionPerformed
-        displayMatrix(ListofLists);
+        //displayMatrix(ListofLists);
+        printInstance();
     }//GEN-LAST:event_printButtonActionPerformed
 
     private void runButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_runButtonActionPerformed
         // TODO add your handling code here:
         openZoo();
     }//GEN-LAST:event_runButtonActionPerformed
+
+    private void randomButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_randomButtonActionPerformed
+        // TODO add your handling code here:
+        textArea.append("num " + randomNum(waitTime,1));
+    }//GEN-LAST:event_randomButtonActionPerformed
     
     public void openZoo(){
         int i = 0;
@@ -424,10 +441,17 @@ public class ZooSim extends javax.swing.JFrame {
         
     }
     
+    
+    // generates a random number based on maximum and minimum values
+    public int randomNum(int max, int min){
+        Random r = new Random();
+        return r.nextInt(max - min + 1) + min;
+    }
+    
     // reads in the file based on instances of number of visitors, etc.
     public void readFile(File selected)throws IOException {
         Scanner scan = new Scanner(selected).useDelimiter("(\\s|,)+");
-        InstanceList = new ArrayList<String>();
+        InstanceDay ins = new InstanceDay();
         int count = 0;
         String temp;
         int a;
@@ -438,15 +462,29 @@ public class ZooSim extends javax.swing.JFrame {
             //InstanceList = new ArrayList<String>();
             //System.out.println("temp: "+ temp);
             //lineCount++;
+            
+            if(count == 0){
+                ins.setVisitors(a);
+            }
+            else if(count == 1){
+                ins.setCars(a);
+            }
+            else if(count == 2){
+                ins.setTime(a);
+            }
+            else{
+                ins.setPumps(a);
+            }
+            
             count++;
+            //if (count >= 3)
+            if (count >=4){
+                count = 0;
+                InstanceList.add(ins);
+                ins = new InstanceDay();
+            }
             textArea.append("\n"  + a);
             
-            // when it is done reading a line.
-            if (count >= 4){
-                InstanceList = new ArrayList<String>();
-                count = 0;
-                break;
-            }
         }
     }
     
@@ -455,7 +493,6 @@ public class ZooSim extends javax.swing.JFrame {
         FileReader in = new FileReader(selected);
         
         Scanner scan = new Scanner(selected);
-        InstanceList = new ArrayList<String>();
         int c = 0;
         String temp;
 
@@ -464,7 +501,20 @@ public class ZooSim extends javax.swing.JFrame {
         }
     }
     
-    
+    public void printInstance(){
+        Iterator it =  InstanceList.iterator(); 
+        int i = 0;
+        InstanceDay a = new InstanceDay();
+        while(it.hasNext()){
+            it.next();
+            System.out.println("\nVisitors: " + InstanceList.get(i).getVisitors());
+            System.out.println("\nCars: " + InstanceList.get(i).getCars());
+            System.out.println("\nTime: " + InstanceList.get(i).getTime());
+            System.out.println("\nPumps: " + InstanceList.get(i).getPumps());
+            i++;
+        }
+        
+    }
     
     public void displayListInteger(List<Integer> a){
         Iterator iter = a.iterator();
@@ -482,28 +532,7 @@ public class ZooSim extends javax.swing.JFrame {
         }
     }
     
-    public void StripString(String test){
-        int i = 0;
-        char temp;
-        InstanceListInteger = new ArrayList<Integer>();
-        StringBuilder aString = new StringBuilder();
-        String into;
-        while(i < test.length()){
-            temp = test.charAt(i);
-            System.out.print(temp);
-            if(Character.isDigit(temp))
-                aString.append(temp);
-            else if(temp == ',' || (i-1) == test.length()){
-                //integerCount++;
-                into = aString.toString();
-                InstanceListInteger.add(Integer.parseInt(into));
-            }
-                
-                
-            i++;
-        }
-        ListofLists.add(InstanceListInteger);
-    }
+
     public void displayMatrix(List<List<Integer>> a){
         List<Integer> LocalLine = new ArrayList<Integer>();
         for (int j = 0; j < lineCount; j++){
@@ -568,6 +597,7 @@ public class ZooSim extends javax.swing.JFrame {
     private javax.swing.JButton openFileButton;
     private javax.swing.JLabel openFileLabel;
     private javax.swing.JButton printButton;
+    private javax.swing.JButton randomButton;
     private javax.swing.JButton runButton;
     private javax.swing.JTextArea textArea;
     // End of variables declaration//GEN-END:variables
