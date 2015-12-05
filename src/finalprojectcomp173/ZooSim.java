@@ -38,6 +38,8 @@ public class ZooSim extends javax.swing.JFrame {
     private Semaphore visitorSem = new Semaphore(0);
     private Semaphore gasSem = new Semaphore(0);
     private Semaphore needGasSem = new Semaphore(0);
+    private Semaphore instanceSem = new Semaphore(0);
+    private Semaphore notifyMaster = new Semaphore(1);
     private int integerCount = 4;
     private int lineCount;
     private int allGas = 200;
@@ -49,9 +51,10 @@ public class ZooSim extends javax.swing.JFrame {
     
     private int sleepSeconds = 1;
 
+    private int insCount = 0;
     private List<InstanceDay> InstanceList = new ArrayList<InstanceDay>();
     private List<List<Integer>> ListofLists = new ArrayList<List<Integer>>();
-    
+    private Iterator allIt = InstanceList.iterator();
     
     
     public class Visitor extends Thread {
@@ -134,13 +137,15 @@ public class ZooSim extends javax.swing.JFrame {
         }
         public void startCar(){
             textArea.append("\nCar " + CarNum + "Started");
-            while(visitorsPresent > 1){
+            while(visitorSem.availablePermits() > 0){
                 CarsIdleLabel.setText("Cars at Idle: waiting...");
                 // if number of rides ==0 get gas
                 if (numRides <= 0){
                     getGas();
                 }
-                
+                if(visitorSem.availablePermits() <= 0){
+                        break;
+                    }
                 try{
                     // get a customer
                     visitorSem.acquire(1);
@@ -153,6 +158,8 @@ public class ZooSim extends javax.swing.JFrame {
                     carSem.release(1);
                     drive();
                     
+                    jLabel2.setText("Visitor Sem: " + visitorSem.availablePermits());
+                    
 
                     // once finished visitor leaves
                     //visitorsPresent--;
@@ -162,10 +169,21 @@ public class ZooSim extends javax.swing.JFrame {
                         System.err.printf("Error on lock");
                 }
             }
-            isRunning = false;
+            //isRunning = false;
             CarsIdleLabel.setText("Cars at Idle: stopped...");
             VisitorsWaitingLabel.setText("Visitors Waiting: " + 0);
+            instanceSem.release();
+            jLabel1.setText("Instance Sem: " + instanceSem.availablePermits());
+            textArea.append("Instance Done: " + CarNum);
+            jLabel3.setText("insCount: " + insCount);
+            if((instanceSem.availablePermits() >= InstanceList.get(insCount-1).getCars()-1)){
+                //insCount++;
+                notifyMaster.release();
+                System.out.println("Doooooone.");
+            }
         }
+        
+        
         
         
         public void run(){
@@ -177,8 +195,22 @@ public class ZooSim extends javax.swing.JFrame {
     }
     
     public class Master extends Thread{
-        public void run(){
+        public Master(){
             
+        }
+        public void run(){
+            try{
+                notifyMaster.acquire();
+                notifyMaster.drainPermits();
+                System.out.println("Master run" );
+                
+                openZoo(InstanceList.get(insCount));
+                insCount++;
+                
+            }
+            catch (InterruptedException e){
+                        System.err.printf("Error on lock");
+            }
         }
     }
     
@@ -257,6 +289,16 @@ public class ZooSim extends javax.swing.JFrame {
         VisitorsWaitingLabel = new javax.swing.JLabel();
         CarsIdleLabel = new javax.swing.JLabel();
         gasRemainingLabel = new javax.swing.JLabel();
+        jLabel1 = new javax.swing.JLabel();
+        jLabel2 = new javax.swing.JLabel();
+        instanceLabel = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
+        jLabel4 = new javax.swing.JLabel();
+        jPanel3 = new javax.swing.JPanel();
+        numVisitorsLabel = new javax.swing.JLabel();
+        numCarsLabel = new javax.swing.JLabel();
+        carRunTimeLabel = new javax.swing.JLabel();
+        numPumpsLabel = new javax.swing.JLabel();
 
         jTextField1.setText("jTextField1");
 
@@ -333,6 +375,12 @@ public class ZooSim extends javax.swing.JFrame {
 
         gasRemainingLabel.setText("Gas Remaining:");
 
+        jLabel1.setText("jLabel1");
+
+        jLabel2.setText("jLabel2");
+
+        instanceLabel.setText("Line Running:");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -340,34 +388,96 @@ public class ZooSim extends javax.swing.JFrame {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(VisitorsWaitingLabel)
-                    .addComponent(CarsIdleLabel)
-                    .addComponent(gasRemainingLabel))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(VisitorsWaitingLabel)
+                            .addComponent(CarsIdleLabel)
+                            .addComponent(gasRemainingLabel)
+                            .addComponent(instanceLabel)
+                            .addComponent(jLabel1))
+                        .addContainerGap(178, Short.MAX_VALUE))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addContainerGap()
+                .addComponent(instanceLabel)
+                .addGap(8, 8, 8)
                 .addComponent(VisitorsWaitingLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(CarsIdleLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gasRemainingLabel)
-                .addContainerGap(65, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addComponent(jLabel2)
+                .addGap(14, 14, 14)
+                .addComponent(jLabel1)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jLabel3.setText("jLabel3");
+
+        jLabel4.setText("jLabel4");
+
+        numVisitorsLabel.setText("Initial Visitors:");
+
+        numCarsLabel.setText("Number of Cars:");
+
+        carRunTimeLabel.setText("Car Run Time:");
+
+        numPumpsLabel.setText("Number of Pumps");
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(numVisitorsLabel)
+                    .addComponent(numCarsLabel)
+                    .addComponent(carRunTimeLabel)
+                    .addComponent(numPumpsLabel))
+                .addContainerGap(135, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGap(16, 16, 16)
+                .addComponent(numVisitorsLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(numCarsLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(carRunTimeLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(numPumpsLabel)
+                .addContainerGap(22, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 494, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 560, Short.MAX_VALUE)
             .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(printButton)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(printButton))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
-            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -375,9 +485,15 @@ public class ZooSim extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(printButton)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jLabel4)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(printButton)
+                    .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
@@ -407,23 +523,87 @@ public class ZooSim extends javax.swing.JFrame {
     }//GEN-LAST:event_printButtonActionPerformed
 
     private void runButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_runButtonActionPerformed
-        // TODO add your handling code here:
-        openZoo();
+        //openZoo(InstanceList.get(0));
+        startMaster();
     }//GEN-LAST:event_runButtonActionPerformed
 
     private void randomButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_randomButtonActionPerformed
-        // TODO add your handling code here:
         textArea.append("num " + randomNum(waitTime,1));
     }//GEN-LAST:event_randomButtonActionPerformed
     
-    public void openZoo(){
+    public void startMaster(){
+        int masterCount = 0;
+        while(allIt.hasNext()){
+            Master m = new Master();
+            m.start();
+            allIt.next();
+            masterCount++;
+            jLabel4.setText("Number of Masters: " + masterCount);
+            
+        }
+    }
+    public void openZoo(InstanceDay c){
+        reset();
+        //isRunning = true;
+        int count2 = 0;
+        setLabels(c);
+        //while(count2 < 2){
+
+            int i = 0;
+            // start new thread for car
+            //car.start();
+             // create thread for each customer and start action
+            while(i < c.getVisitors()){
+                //textArea.append("\nA Visitor enters." + i);
+                Visitor visitor = new Visitor(i);
+                visitor.start();
+                i++;
+                //counter++;
+            }
+
+            // initialize the number of gas pumps        
+            for (int k = 0; k < c.getPumps(); k++){
+                Gas gas = new Gas(k);
+                gas.start();
+            }
+            // initialize the number of cars
+            for(int j = 0; j < c.getCars(); j++){
+                Car car = new Car(j);
+                car.start();
+
+            }
+
+
+           
+          //  count2++;
+        //}
+        //System.out.println("Program has finished.");
+    }
+    
+    public void reset(){
+          carSem = new Semaphore(0);
+          visitorSem = new Semaphore(0);
+          gasSem = new Semaphore(0);
+          needGasSem = new Semaphore(0);
+          instanceSem = new Semaphore(0);
+    }
+    
+    public void openZoo2(){
         //isRunning = true;
         int count2 = 0;
         //while(count2 < 2){
  
             int i = 0;
-            // start new thread for car
-            //car.start();
+
+            // create thread for each customer and start action
+            while(i < visitorsActive){
+                //textArea.append("\nA Visitor enters." + i);
+                Visitor visitor = new Visitor(i);
+                visitor.start();
+                i++;
+                //counter++;
+            }
+            suspendSleep(1);
 
             // initialize the number of gas pumps        
             for (int k = 0; k < numGasPumps; k++){
@@ -438,17 +618,28 @@ public class ZooSim extends javax.swing.JFrame {
             }
 
 
-            // create thread for each customer and start action
-            while(i < visitorsActive){
-                //textArea.append("\nA Visitor enters." + i);
-                Visitor visitor = new Visitor(i);
-                visitor.start();
-                i++;
-                //counter++;
-            }
+            
           //  count2++;
         //}
         //System.out.println("Program has finished.");
+    }
+    
+    public void setLabels(InstanceDay a){
+        numVisitorsLabel.setText("Initial Visitors: " + a.getVisitors());
+        numCarsLabel.setText("Number of Cars: " + a.getCars());
+        numPumpsLabel.setText("Number of Pumps: " + a.getPumps());
+        carRunTimeLabel.setText("Car Run Time: " + a.getTime());
+        instanceLabel.setText("Line Running: "+ (insCount+1));
+    }
+    
+    public boolean checkInstanceInput(){
+            if(allIt.hasNext()){
+                allIt.next();
+                insCount++;
+                return true;
+            }
+            
+            return false;
     }
     
     
@@ -492,10 +683,12 @@ public class ZooSim extends javax.swing.JFrame {
                 count = 0;
                 InstanceList.add(ins);
                 ins = new InstanceDay();
+                //insCount++;
             }
             textArea.append("\n"  + a);
             
         }
+        allIt = InstanceList.iterator();
     }
     
     
@@ -599,11 +792,21 @@ public class ZooSim extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel CarsIdleLabel;
     private javax.swing.JLabel VisitorsWaitingLabel;
+    private javax.swing.JLabel carRunTimeLabel;
     private javax.swing.JLabel gasRemainingLabel;
+    private javax.swing.JLabel instanceLabel;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextField jTextField1;
+    private javax.swing.JLabel numCarsLabel;
+    private javax.swing.JLabel numPumpsLabel;
+    private javax.swing.JLabel numVisitorsLabel;
     private javax.swing.JButton openFileButton;
     private javax.swing.JLabel openFileLabel;
     private javax.swing.JButton printButton;
