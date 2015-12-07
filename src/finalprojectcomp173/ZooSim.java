@@ -40,6 +40,8 @@ public class ZooSim extends javax.swing.JFrame {
     private Semaphore needGasSem = new Semaphore(0);
     private Semaphore instanceSem = new Semaphore(0);
     private Semaphore notifyMaster = new Semaphore(1);
+    private Semaphore gasTruckSem = new Semaphore(0);
+
     private int integerCount = 4;
     private int lineCount;
     private int allGas = 200;
@@ -77,9 +79,6 @@ public class ZooSim extends javax.swing.JFrame {
             // update number of customers present on GUI
             VisitorsWaitingLabel.setText("Visitors Waiting: " + visitorsPresent);
 
-            // if there are no customers in shop barber sleeps
-            //if(visitorsPresent <= 0)
-                // cars idle
         }
         
         public void tryRide(){
@@ -117,7 +116,7 @@ public class ZooSim extends javax.swing.JFrame {
         
         public Car(int n){
             CarNum = n;
-            numRides = 5;
+            numRides = 1;
         }
         
         public void drive(){
@@ -129,7 +128,7 @@ public class ZooSim extends javax.swing.JFrame {
             try{
                 gasSem.acquire(1);
                 textArea.append("Car " + CarNum + " got gas.");
-                numRides = 5;
+                numRides = 1;
             }
             catch (InterruptedException e){
                         System.err.printf("Error on lock");
@@ -157,10 +156,7 @@ public class ZooSim extends javax.swing.JFrame {
                     CarsIdleLabel.setText("Cars at Idle: Running...");
                     carSem.release(1);
                     drive();
-                    
-                    jLabel2.setText("Visitor Sem: " + visitorSem.availablePermits());
-                    
-
+                                        
                     // once finished visitor leaves
                     //visitorsPresent--;
                     VisitorsWaitingLabel.setText("Visitors Waiting: " + visitorsPresent);
@@ -173,9 +169,7 @@ public class ZooSim extends javax.swing.JFrame {
             CarsIdleLabel.setText("Cars at Idle: stopped...");
             VisitorsWaitingLabel.setText("Visitors Waiting: " + 0);
             instanceSem.release();
-            jLabel1.setText("Instance Sem: " + instanceSem.availablePermits());
             textArea.append("Instance Done: " + CarNum);
-            jLabel3.setText("insCount: " + insCount);
             if((instanceSem.availablePermits() >= InstanceList.get(insCount-1).getCars()-1)){
                 //insCount++;
                 notifyMaster.release();
@@ -226,7 +220,9 @@ public class ZooSim extends javax.swing.JFrame {
             //GasLeft = 200;
         }
         public void refillStation(){
+            gasTruckLabel.setText("Gas truck status: on the way.");
             suspendSleep(15);
+            gasTruckLabel.setText("Gas truck status: Fuel delivered.");
             allGas = 200;
         }
         
@@ -248,11 +244,13 @@ public class ZooSim extends javax.swing.JFrame {
                     System.err.printf("Error on lock");
                 }
                 
-                if(allGas < 50){
-                    refillStation();
-                    textArea.append("Refilling Station");
-                    gasRemainingLabel.setText("Gas Remaining: " + allGas);
+                    if (allGas < 190) {
+                        gasTruckSem.release();
+                        //refillStation();
+                        //textArea.append("Refilling Station");
+                        //gasRemainingLabel.setText("Gas Remaining: " + allGas);
                 }
+                
             }
             
         }
@@ -260,6 +258,29 @@ public class ZooSim extends javax.swing.JFrame {
             gasRemainingLabel.setText("Gas Remaining: " + allGas);
             openGasStation();
             gasSem.release(1);
+        }
+    }
+    
+    public class GasTruck extends Thread{
+        public GasTruck(){
+            
+        }
+        public void deployGasTruck(){
+            try {
+                gasTruckSem.acquire();
+                gasTruckLabel.setText("Gas truck status: on the way.");
+                suspendSleep(15);
+                gasTruckLabel.setText("Gas truck status: Fuel delivered.");
+                gasTruckSem.drainPermits();
+                allGas = 200;
+                gasRemainingLabel.setText("Gas Remaining: " + allGas);
+                
+            } catch (InterruptedException e) {
+                System.err.printf("Error on lock");
+            }
+        }
+        public void run(){
+            deployGasTruck();
         }
     }
     
@@ -283,17 +304,13 @@ public class ZooSim extends javax.swing.JFrame {
         openFileButton = new javax.swing.JButton();
         openFileLabel = new javax.swing.JLabel();
         runButton = new javax.swing.JButton();
-        randomButton = new javax.swing.JButton();
         printButton = new javax.swing.JButton();
         jPanel2 = new javax.swing.JPanel();
         VisitorsWaitingLabel = new javax.swing.JLabel();
         CarsIdleLabel = new javax.swing.JLabel();
         gasRemainingLabel = new javax.swing.JLabel();
-        jLabel1 = new javax.swing.JLabel();
-        jLabel2 = new javax.swing.JLabel();
         instanceLabel = new javax.swing.JLabel();
-        jLabel3 = new javax.swing.JLabel();
-        jLabel4 = new javax.swing.JLabel();
+        gasTruckLabel = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         numVisitorsLabel = new javax.swing.JLabel();
         numCarsLabel = new javax.swing.JLabel();
@@ -324,13 +341,6 @@ public class ZooSim extends javax.swing.JFrame {
             }
         });
 
-        randomButton.setText("Random");
-        randomButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                randomButtonActionPerformed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -344,8 +354,6 @@ public class ZooSim extends javax.swing.JFrame {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(openFileButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(randomButton)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(runButton)
                         .addGap(34, 34, 34))))
         );
@@ -357,8 +365,7 @@ public class ZooSim extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(openFileButton)
-                    .addComponent(runButton)
-                    .addComponent(randomButton))
+                    .addComponent(runButton))
                 .addGap(34, 34, 34))
         );
 
@@ -375,11 +382,9 @@ public class ZooSim extends javax.swing.JFrame {
 
         gasRemainingLabel.setText("Gas Remaining:");
 
-        jLabel1.setText("jLabel1");
-
-        jLabel2.setText("jLabel2");
-
         instanceLabel.setText("Line Running:");
+
+        gasTruckLabel.setText("Gas truck status: Idle");
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -389,16 +394,15 @@ public class ZooSim extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel2)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(VisitorsWaitingLabel)
                             .addComponent(CarsIdleLabel)
                             .addComponent(gasRemainingLabel)
-                            .addComponent(instanceLabel)
-                            .addComponent(jLabel1))
-                        .addContainerGap(178, Short.MAX_VALUE))))
+                            .addComponent(instanceLabel))
+                        .addContainerGap(178, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(gasTruckLabel)
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -410,16 +414,10 @@ public class ZooSim extends javax.swing.JFrame {
                 .addComponent(CarsIdleLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gasRemainingLabel)
-                .addGap(18, 18, 18)
-                .addComponent(jLabel2)
-                .addGap(14, 14, 14)
-                .addComponent(jLabel1)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(gasTruckLabel)
+                .addContainerGap(51, Short.MAX_VALUE))
         );
-
-        jLabel3.setText("jLabel3");
-
-        jLabel4.setText("jLabel4");
 
         numVisitorsLabel.setText("Initial Visitors:");
 
@@ -468,15 +466,8 @@ public class ZooSim extends javax.swing.JFrame {
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(printButton))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel4)
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(printButton)
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -488,12 +479,8 @@ public class ZooSim extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel4)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(printButton)
-                    .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 31, Short.MAX_VALUE)
+                .addComponent(printButton)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
@@ -526,10 +513,6 @@ public class ZooSim extends javax.swing.JFrame {
         //openZoo(InstanceList.get(0));
         startMaster();
     }//GEN-LAST:event_runButtonActionPerformed
-
-    private void randomButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_randomButtonActionPerformed
-        textArea.append("num " + randomNum(waitTime,1));
-    }//GEN-LAST:event_randomButtonActionPerformed
     
     public void startMaster(){
         int masterCount = 0;
@@ -537,9 +520,7 @@ public class ZooSim extends javax.swing.JFrame {
             Master m = new Master();
             m.start();
             allIt.next();
-            masterCount++;
-            jLabel4.setText("Number of Masters: " + masterCount);
-            
+            masterCount++;            
         }
     }
     public void openZoo(InstanceDay c){
@@ -547,18 +528,13 @@ public class ZooSim extends javax.swing.JFrame {
         //isRunning = true;
         int count2 = 0;
         setLabels(c);
-        //while(count2 < 2){
-
+        textArea.append("Zoo Open!");
             int i = 0;
-            // start new thread for car
-            //car.start();
              // create thread for each customer and start action
             while(i < c.getVisitors()){
-                //textArea.append("\nA Visitor enters." + i);
                 Visitor visitor = new Visitor(i);
                 visitor.start();
                 i++;
-                //counter++;
             }
 
             // initialize the number of gas pumps        
@@ -572,12 +548,9 @@ public class ZooSim extends javax.swing.JFrame {
                 car.start();
 
             }
+            GasTruck truck = new GasTruck();
+            truck.start();
 
-
-           
-          //  count2++;
-        //}
-        //System.out.println("Program has finished.");
     }
     
     public void reset(){
@@ -586,6 +559,7 @@ public class ZooSim extends javax.swing.JFrame {
           gasSem = new Semaphore(0);
           needGasSem = new Semaphore(0);
           instanceSem = new Semaphore(0);
+          gasTruckSem = new Semaphore(0);
     }
     
     public void openZoo2(){
@@ -630,6 +604,7 @@ public class ZooSim extends javax.swing.JFrame {
         numPumpsLabel.setText("Number of Pumps: " + a.getPumps());
         carRunTimeLabel.setText("Car Run Time: " + a.getTime());
         instanceLabel.setText("Line Running: "+ (insCount+1));
+        gasTruckLabel.setText("Gas truck status: Idle");
     }
     
     public boolean checkInstanceInput(){
@@ -684,9 +659,7 @@ public class ZooSim extends javax.swing.JFrame {
                 InstanceList.add(ins);
                 ins = new InstanceDay();
                 //insCount++;
-            }
-            textArea.append("\n"  + a);
-            
+            }            
         }
         allIt = InstanceList.iterator();
     }
@@ -794,11 +767,8 @@ public class ZooSim extends javax.swing.JFrame {
     private javax.swing.JLabel VisitorsWaitingLabel;
     private javax.swing.JLabel carRunTimeLabel;
     private javax.swing.JLabel gasRemainingLabel;
+    private javax.swing.JLabel gasTruckLabel;
     private javax.swing.JLabel instanceLabel;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
-    private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
@@ -810,7 +780,6 @@ public class ZooSim extends javax.swing.JFrame {
     private javax.swing.JButton openFileButton;
     private javax.swing.JLabel openFileLabel;
     private javax.swing.JButton printButton;
-    private javax.swing.JButton randomButton;
     private javax.swing.JButton runButton;
     private javax.swing.JTextArea textArea;
     // End of variables declaration//GEN-END:variables
