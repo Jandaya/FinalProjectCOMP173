@@ -109,6 +109,7 @@ public class ZooSim extends javax.swing.JFrame {
     public class Car extends Thread{
         private int CarNum;
         private int numRides;
+        private int deadCount;
         
         public Car(){
             CarNum = 0;
@@ -128,8 +129,12 @@ public class ZooSim extends javax.swing.JFrame {
                 suspendSleep(waitTime);
         }
         public void getGas(){
+            if(numGasPumps <= 0){
+                errorLabel.setText("Errors: There are no gas pumps! Program Halted." );
+            }
             // tells the gas station that it needs gas
             needGasSem.release(1);
+            
             // tries to get a pump.
             try{
                 gasSem.acquire(1);
@@ -307,6 +312,7 @@ public class ZooSim extends javax.swing.JFrame {
         gasRemainingLabel = new javax.swing.JLabel();
         instanceLabel = new javax.swing.JLabel();
         gasTruckLabel = new javax.swing.JLabel();
+        errorLabel = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         numVisitorsLabel = new javax.swing.JLabel();
         numCarsLabel = new javax.swing.JLabel();
@@ -383,6 +389,9 @@ public class ZooSim extends javax.swing.JFrame {
 
         gasTruckLabel.setText("Gas truck status: Idle");
 
+        errorLabel.setForeground(new java.awt.Color(255, 0, 0));
+        errorLabel.setText("Errors: ");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -398,7 +407,9 @@ public class ZooSim extends javax.swing.JFrame {
                             .addComponent(instanceLabel))
                         .addContainerGap(178, Short.MAX_VALUE))
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(gasTruckLabel)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(gasTruckLabel)
+                            .addComponent(errorLabel))
                         .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel2Layout.setVerticalGroup(
@@ -413,7 +424,8 @@ public class ZooSim extends javax.swing.JFrame {
                 .addComponent(gasRemainingLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gasTruckLabel)
-                .addContainerGap(46, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 32, Short.MAX_VALUE)
+                .addComponent(errorLabel))
         );
 
         numVisitorsLabel.setText("Initial Visitors:");
@@ -540,6 +552,13 @@ public class ZooSim extends javax.swing.JFrame {
         textArea.append("Zoo Open!");
         int i = 0;
         waitTime = c.getTime();
+        while(c.getVisitors() < 1){
+            errorLabel.setText("Errors: No Visitors! Program Halted.");
+        }
+        while(waitTime < 1){
+            errorLabel.setText("Errors: Ride time cannot be less than 1 Program Halted.");
+        }
+        numGasPumps = c.getPumps();
         // create thread for each customer and start action
         while (i < c.getVisitors()) {
             Visitor visitor = new Visitor(i);
@@ -552,6 +571,10 @@ public class ZooSim extends javax.swing.JFrame {
         for (int k = 0; k < c.getPumps(); k++) {
             Gas gas = new Gas(k);
             gas.start();
+        }
+        
+        while(c.getCars() < 1){
+            errorLabel.setText("Errors: There are no cars! visitors are stuck! Program Halted.");
         }
         // initialize the number of cars
         for (int j = 0; j < c.getCars(); j++) {
@@ -705,6 +728,7 @@ public class ZooSim extends javax.swing.JFrame {
     private javax.swing.JLabel CarsIdleLabel;
     private javax.swing.JLabel VisitorsWaitingLabel;
     private javax.swing.JLabel carRunTimeLabel;
+    private javax.swing.JLabel errorLabel;
     private javax.swing.JLabel gasRemainingLabel;
     private javax.swing.JLabel gasTruckLabel;
     private javax.swing.JLabel instanceLabel;
