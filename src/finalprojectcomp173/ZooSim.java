@@ -23,6 +23,11 @@ import javax.swing.JFileChooser;
 
 
 public class ZooSim extends javax.swing.JFrame {
+    // globals to adjust the time the truck is called and the number of rides each car can give before getting gas
+    private int CALL_TRUCK_AT = 50;
+    private int NUM_RIDES = 5;
+    
+    
 
     private File selectedFile;
     private String sFile;
@@ -42,12 +47,8 @@ public class ZooSim extends javax.swing.JFrame {
     private Semaphore notifyMaster = new Semaphore(1);
     private Semaphore gasTruckSem = new Semaphore(0);
 
-    private int integerCount = 4;
-    private int lineCount;
     private int allGas = 200;
-    
-    private boolean isRunning = true;
-    
+        
     public Car car = new Car();
     public Visitor visitor = new Visitor();
     
@@ -55,10 +56,9 @@ public class ZooSim extends javax.swing.JFrame {
 
     private int insCount = 0;
     private List<InstanceDay> InstanceList = new ArrayList<InstanceDay>();
-    private List<List<Integer>> ListofLists = new ArrayList<List<Integer>>();
     private Iterator allIt = InstanceList.iterator();
     
-    
+    // visitors keep track of how many are waiting, continue to attempt to get cars/
     public class Visitor extends Thread {
         int visitorNum;
         
@@ -86,7 +86,7 @@ public class ZooSim extends javax.swing.JFrame {
                 //Try to get a car.
                 carSem.acquire(1);
                 // takes ride
-                suspendSleep(1);
+                //suspendSleep(1);
                 //once ride finished, they leave the zoo
                 leave();
             }
@@ -116,19 +116,28 @@ public class ZooSim extends javax.swing.JFrame {
         
         public Car(int n){
             CarNum = n;
-            numRides = 1;
+            numRides = NUM_RIDES;
         }
-        
+        // drives around for a random times from 1- whatever the input was for time.
         public void drive(){
             numRides--;
-            suspendSleep(randomNum(waitTime,1));
+            // will generate random intervals based on input for time, or car run all the same time.
+            if (randomBox.isSelected())
+                suspendSleep(randomNum(waitTime,1));
+            else
+                suspendSleep(waitTime);
         }
         public void getGas(){
+            // tells the gas station that it needs gas
             needGasSem.release(1);
+            // tries to get a pump.
             try{
                 gasSem.acquire(1);
                 textArea.append("Car " + CarNum + " got gas.");
-                numRides = 1;
+                allGas--;
+                gasRemainingLabel.setText("Gas Remaining: " + allGas);
+                numRides = NUM_RIDES;
+                
             }
             catch (InterruptedException e){
                         System.err.printf("Error on lock");
@@ -138,47 +147,39 @@ public class ZooSim extends javax.swing.JFrame {
             textArea.append("\nCar " + CarNum + "Started");
             while(visitorSem.availablePermits() > 0){
                 CarsIdleLabel.setText("Cars at Idle: waiting...");
-                // if number of rides ==0 get gas
+                // if number of rides <= 0 get gas
                 if (numRides <= 0){
                     getGas();
                 }
+                // if there are no visitors, ensure that the threads are breaking the loop.
                 if(visitorSem.availablePermits() <= 0){
                         break;
                     }
                 try{
-                    // get a customer
+                    // get a visitor
                     visitorSem.acquire(1);
                     System.out.println("Car: " + CarNum + " got customer");
 
-                    // perform work on customer
-                    //barberStatus.setText("Barber Status: cutting..");
-                    //finishCustomer();
                     CarsIdleLabel.setText("Cars at Idle: Running...");
                     carSem.release(1);
                     drive();
                                         
-                    // once finished visitor leaves
-                    //visitorsPresent--;
-                    VisitorsWaitingLabel.setText("Visitors Waiting: " + visitorsPresent);
+                    //VisitorsWaitingLabel.setText("Visitors Waiting: " + visitorsPresent);
                 }
                 catch (InterruptedException e){
                         System.err.printf("Error on lock");
                 }
             }
-            //isRunning = false;
             CarsIdleLabel.setText("Cars at Idle: stopped...");
-            VisitorsWaitingLabel.setText("Visitors Waiting: " + 0);
+            VisitorsWaitingLabel.setText("Visitors Waiting: 0");
+            // counts for each thread to be finished.
             instanceSem.release();
             textArea.append("Instance Done: " + CarNum);
+            // notify the master when everything is done.
             if((instanceSem.availablePermits() >= InstanceList.get(insCount-1).getCars()-1)){
-                //insCount++;
                 notifyMaster.release();
-                System.out.println("Doooooone.");
             }
         }
-        
-        
-        
         
         public void run(){
             startCar();
@@ -188,6 +189,7 @@ public class ZooSim extends javax.swing.JFrame {
         }
     }
     
+    // master thread runs the lines of input
     public class Master extends Thread{
         public Master(){
             
@@ -195,9 +197,11 @@ public class ZooSim extends javax.swing.JFrame {
         public void run(){
             try{
                 notifyMaster.acquire();
+                visitorsPresent = 0;
+                //suspendSleep(5);
                 notifyMaster.drainPermits();
                 System.out.println("Master run" );
-                
+                // run the next instance with the next line
                 openZoo(InstanceList.get(insCount));
                 insCount++;
                 
@@ -208,47 +212,38 @@ public class ZooSim extends javax.swing.JFrame {
         }
     }
     
+    // gas thread operates the pumps, and can call the gasTruck thread from gas
     public class Gas extends Thread{
-        private int GasLeft;
         private int pumpNumber;
         
         public Gas(){
-            //GasLeft = 200;
         }
         public Gas(int n){
             pumpNumber = n;
-            //GasLeft = 200;
         }
-        public void refillStation(){
-            gasTruckLabel.setText("Gas truck status: on the way.");
-            suspendSleep(15);
-            gasTruckLabel.setText("Gas truck status: Fuel delivered.");
-            allGas = 200;
-        }
+
         
         public void openGasStation(){
             textArea.append("\nGas Pump " + pumpNumber+ " on");
             
             
             while(numCars > 0){
-                //System.out.println("waiting....");
                 try{
                     needGasSem.acquire(1);
                     // cars take 3 seconds to refill
                     suspendSleep(3);
                     gasSem.release(1);
-                    allGas--;
-                    gasRemainingLabel.setText("Gas Remaining: " + allGas);
+                    
                 }
                 catch (InterruptedException e){
                     System.err.printf("Error on lock");
                 }
                 
-                    if (allGas < 190) {
+                    if (allGas < CALL_TRUCK_AT) {
                         gasTruckSem.release();
-                        //refillStation();
-                        //textArea.append("Refilling Station");
-                        //gasRemainingLabel.setText("Gas Remaining: " + allGas);
+                        // if the gas station hits zero wait before releasing cars.
+                        while(allGas < 0);
+                            
                 }
                 
             }
@@ -261,6 +256,7 @@ public class ZooSim extends javax.swing.JFrame {
         }
     }
     
+    // gas truck thread waits to be called, so that cars can still take gas from the station as the truck comes.
     public class GasTruck extends Thread{
         public GasTruck(){
             
@@ -316,6 +312,7 @@ public class ZooSim extends javax.swing.JFrame {
         numCarsLabel = new javax.swing.JLabel();
         carRunTimeLabel = new javax.swing.JLabel();
         numPumpsLabel = new javax.swing.JLabel();
+        randomBox = new javax.swing.JCheckBox();
 
         jTextField1.setText("jTextField1");
 
@@ -414,9 +411,9 @@ public class ZooSim extends javax.swing.JFrame {
                 .addComponent(CarsIdleLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gasRemainingLabel)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gasTruckLabel)
-                .addContainerGap(51, Short.MAX_VALUE))
+                .addContainerGap(46, Short.MAX_VALUE))
         );
 
         numVisitorsLabel.setText("Initial Visitors:");
@@ -454,6 +451,9 @@ public class ZooSim extends javax.swing.JFrame {
                 .addContainerGap(22, Short.MAX_VALUE))
         );
 
+        randomBox.setSelected(true);
+        randomBox.setText("Random car times?");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -466,7 +466,9 @@ public class ZooSim extends javax.swing.JFrame {
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap()
+                .addComponent(randomBox)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(printButton)
                 .addContainerGap())
         );
@@ -479,9 +481,15 @@ public class ZooSim extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 31, Short.MAX_VALUE)
-                .addComponent(printButton)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(printButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addComponent(randomBox)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 24, Short.MAX_VALUE)))
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
@@ -510,10 +518,11 @@ public class ZooSim extends javax.swing.JFrame {
     }//GEN-LAST:event_printButtonActionPerformed
 
     private void runButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_runButtonActionPerformed
-        //openZoo(InstanceList.get(0));
+        runButton.setEnabled(false);
         startMaster();
     }//GEN-LAST:event_runButtonActionPerformed
     
+    // this is the initializer for the master thread which runs the lines of input from the input file
     public void startMaster(){
         int masterCount = 0;
         while(allIt.hasNext()){
@@ -523,80 +532,56 @@ public class ZooSim extends javax.swing.JFrame {
             masterCount++;            
         }
     }
-    public void openZoo(InstanceDay c){
+    public void openZoo(InstanceDay c) {
         reset();
         //isRunning = true;
         int count2 = 0;
         setLabels(c);
         textArea.append("Zoo Open!");
-            int i = 0;
-             // create thread for each customer and start action
-            while(i < c.getVisitors()){
-                Visitor visitor = new Visitor(i);
-                visitor.start();
-                i++;
-            }
+        int i = 0;
+        waitTime = c.getTime();
+        // create thread for each customer and start action
+        while (i < c.getVisitors()) {
+            Visitor visitor = new Visitor(i);
+            visitor.start();
+            i++;
+        }
+        suspendSleep(2);
 
-            // initialize the number of gas pumps        
-            for (int k = 0; k < c.getPumps(); k++){
-                Gas gas = new Gas(k);
-                gas.start();
-            }
-            // initialize the number of cars
-            for(int j = 0; j < c.getCars(); j++){
-                Car car = new Car(j);
-                car.start();
+        // initialize the number of gas pumps        
+        for (int k = 0; k < c.getPumps(); k++) {
+            Gas gas = new Gas(k);
+            gas.start();
+        }
+        // initialize the number of cars
+        for (int j = 0; j < c.getCars(); j++) {
+            Car car = new Car(j);
+            car.start();
 
-            }
-            GasTruck truck = new GasTruck();
-            truck.start();
+        }
+        GasTruck truck = new GasTruck();
+        truck.start();
 
     }
     
     public void reset(){
-          carSem = new Semaphore(0);
-          visitorSem = new Semaphore(0);
-          gasSem = new Semaphore(0);
-          needGasSem = new Semaphore(0);
-          instanceSem = new Semaphore(0);
-          gasTruckSem = new Semaphore(0);
+        carSem = new Semaphore(0);
+        visitorSem = new Semaphore(0);
+        gasSem = new Semaphore(0);
+        needGasSem = new Semaphore(0);
+        instanceSem = new Semaphore(0);
+        gasTruckSem = new Semaphore(0);
+       /*
+        numVisitors = 0;
+        visitorsActive = numVisitors;
+        numCars = 0;
+        numGasPumps = 0;
+        waitTime = 0;
+        visitorsPresent = 0;
+        */
+        visitorsPresent = 0;
     }
-    
-    public void openZoo2(){
-        //isRunning = true;
-        int count2 = 0;
-        //while(count2 < 2){
- 
-            int i = 0;
-
-            // create thread for each customer and start action
-            while(i < visitorsActive){
-                //textArea.append("\nA Visitor enters." + i);
-                Visitor visitor = new Visitor(i);
-                visitor.start();
-                i++;
-                //counter++;
-            }
-            suspendSleep(1);
-
-            // initialize the number of gas pumps        
-            for (int k = 0; k < numGasPumps; k++){
-                Gas gas = new Gas(k);
-                gas.start();
-            }
-            // initialize the number of cars
-            for(int j = 0; j < numCars; j++){
-                Car car = new Car(j);
-                car.start();
-
-            }
-
-
-            
-          //  count2++;
-        //}
-        //System.out.println("Program has finished.");
-    }
+   
     
     public void setLabels(InstanceDay a){
         numVisitorsLabel.setText("Initial Visitors: " + a.getVisitors());
@@ -633,11 +618,6 @@ public class ZooSim extends javax.swing.JFrame {
         int a;
         while(scan.hasNext()){
             a = scan.nextInt();
-            //StripString(temp);
-            //InstanceList.add(temp);
-            //InstanceList = new ArrayList<String>();
-            //System.out.println("temp: "+ temp);
-            //lineCount++;
             
             if(count == 0){
                 ins.setVisitors(a);
@@ -665,62 +645,21 @@ public class ZooSim extends javax.swing.JFrame {
     }
     
     
-    public void readFile2(File selected)throws IOException {
-        FileReader in = new FileReader(selected);
-        
-        Scanner scan = new Scanner(selected);
-        int c = 0;
-        String temp;
-
-        while((c = in.read()) != -1){
-            textArea.append("\n" + c);
-        }
-    }
-    
     public void printInstance(){
         Iterator it =  InstanceList.iterator(); 
         int i = 0;
         InstanceDay a = new InstanceDay();
         while(it.hasNext()){
             it.next();
-            System.out.println("\nVisitors: " + InstanceList.get(i).getVisitors());
-            System.out.println("\nCars: " + InstanceList.get(i).getCars());
-            System.out.println("\nTime: " + InstanceList.get(i).getTime());
-            System.out.println("\nPumps: " + InstanceList.get(i).getPumps());
+            textArea.append("\nVisitors: " + InstanceList.get(i).getVisitors());
+            textArea.append("\nCars: " + InstanceList.get(i).getCars());
+            textArea.append("\nTime: " + InstanceList.get(i).getTime());
+            textArea.append("\nPumps: " + InstanceList.get(i).getPumps());
             i++;
         }
         
     }
-    
-    public void displayListInteger(List<Integer> a){
-        Iterator iter = a.iterator();
-        while(iter.hasNext()){
-            
-            textArea.append("\n" + iter.next());
-        }
-    }
-    
-    public void displayList(List<String> a){
-        Iterator iter = a.iterator();
-        while(iter.hasNext()){
-            
-            textArea.append("\n" + iter.next());
-        }
-    }
-    
-
-    public void displayMatrix(List<List<Integer>> a){
-        List<Integer> LocalLine = new ArrayList<Integer>();
-        for (int j = 0; j < lineCount; j++){
-            LocalLine = a.get(j);
-            for(int k = 0; k < integerCount; k++){
-                textArea.append(LocalLine.get(k) + " ");
-            }
-            textArea.append("\n");
-            LocalLine = new ArrayList<Integer>();
-        }
-    }
-    
+       
     public void suspendSleep(int numSleep){
         try {
                 sleep(1000 * numSleep);
@@ -780,6 +719,7 @@ public class ZooSim extends javax.swing.JFrame {
     private javax.swing.JButton openFileButton;
     private javax.swing.JLabel openFileLabel;
     private javax.swing.JButton printButton;
+    private javax.swing.JCheckBox randomBox;
     private javax.swing.JButton runButton;
     private javax.swing.JTextArea textArea;
     // End of variables declaration//GEN-END:variables
